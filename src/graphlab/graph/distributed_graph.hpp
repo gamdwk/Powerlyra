@@ -137,6 +137,8 @@ namespace graphlab {
   /** \brief A directed graph datastructure which is distributed across
    * multiple machines.
    *
+   * 分布在多个机器上的有向图数据结构
+   *
    * This class implements a distributed directed graph datastructure where
    * vertices and edges may contain arbitrary user-defined datatypes as
    * templatized by the VertexData and EdgeData template parameters.
@@ -467,6 +469,8 @@ namespace graphlab {
      * state. It behaves as a reference to location of the vertex
      * in the internal graph representation. While vertex_type may be copied
      * it must not outlive the underlying graph.
+     *
+     * 定义顶点类型
      */
     struct vertex_type {
       typedef distributed_graph graph_type;
@@ -548,6 +552,8 @@ namespace graphlab {
      * and essentially only a reference to the location of the edge
      * information in the underlying graph.  Therefore edge objects
      * can be copied but must not outlive the underlying graph.
+     *
+     * 定义边类型
      */
     class edge_type {
     private:
@@ -780,10 +786,15 @@ namespace graphlab {
      * \brief Commits the graph structure. Once a graph is finalized it may
      * no longer be modified. Must be called on all machines simultaneously.
      *
+     * 提交图结构.一旦图形完成,它可能不再被修改. 必须同时在所有机器上调用。
+     *
      * Finalize is used to complete graph ingress by resolving vertex
      * ownship and completing local data structures. Once a graph is finalized
      * its structure may not be modified. Repeated calls to finalize() do
      * nothing.
+     *
+     * Finalize用于通过解析顶点本地并完成本地数据结构来完成图形入口。 一旦图形完成，其结构可能不会被修改。 重复调用finalize（）系统将什么也不做。
+     *
      */
     void finalize() {
 #ifndef USE_DYNAMIC_LOCAL_GRAPH
@@ -791,6 +802,7 @@ namespace graphlab {
 #endif
       ASSERT_NE(ingress_ptr, NULL);
       logstream(LOG_INFO) << "Distributed graph: enter finalize" << std::endl;
+      //ingress指针调用finalize方法
       ingress_ptr->finalize();
       lock_manager.resize(num_local_vertices());
       rpc.barrier(); 
@@ -986,6 +998,7 @@ namespace graphlab {
    /**
     * \brief Performs a map-reduce operation on each vertex in the
     * graph returning the result.
+    * 在图的每个顶点上执行map-reduce操作，返回结果。
     *
     * Given a map function, map_reduce_vertices() call the map function on all
     * vertices in the graph. The return values are then summed together and the
@@ -2498,6 +2511,7 @@ namespace graphlab {
     /**
      *  \brief load a graph with a standard format. Must be called on all
      *  machines simultaneously.
+     * 加载一个标准格式的图形。 必须同时在所有机器上调用。
      *
      *  The supported graph formats are described in \ref graph_formats.
      */
@@ -3283,6 +3297,7 @@ namespace graphlab {
 
     lock_manager_type lock_manager;
 
+    //设置采用哪种图分区策略
     void set_ingress_method(const std::string& method,
         size_t bufsize = 50000, bool usehash = false, bool userecent = false, 
         std::string favorite = "source",

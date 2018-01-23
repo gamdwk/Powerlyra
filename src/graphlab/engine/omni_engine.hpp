@@ -180,6 +180,7 @@ namespace graphlab {
 
     /**
      * \brief A pointer to the actual engine in use.
+     * 实际引擎使用指针
      */
     iengine_type* engine_ptr;
 

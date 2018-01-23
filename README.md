@@ -4,7 +4,7 @@
 PowerLyra is released under the [Apache 2 license](http://www.apache.org/licenses/LICENSE-2.0.html).
 
 If you use PowerLyra in your research, please cite our paper:
-```    
+```    __
     @inproceedings{Chen:eurosys2015powerlyra,
      title = {PowerLyra: Differentiated Graph Computation and Partitioning on Skewed Graphs},
      author = {Chen, Rong and Shi, Jiaxin and Chen, Yanzhe and Chen, Haibo},

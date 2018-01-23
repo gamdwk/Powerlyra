@@ -169,11 +169,13 @@ double pagerank_sum(graph_type::vertex_type v) {
 
 int main(int argc, char** argv) {
   // Initialize control plain using mpi
+  //初始化MPI
   graphlab::mpi_tools::init(argc, argv);
   graphlab::distributed_control dc;
   global_logger().set_log_level(LOG_INFO);
 
   // Parse command line options -----------------------------------------------
+  // 加载配置参数
   graphlab::command_line_options clopts("PageRank algorithm.");
   std::string graph_dir;
   std::string format = "adj";
@@ -223,14 +225,17 @@ int main(int argc, char** argv) {
   }
 
   // Build the graph ----------------------------------------------------------
+  // 构建图结构
   dc.cout() << "Loading graph." << std::endl;
-  graphlab::timer timer; 
+  graphlab::timer timer;
+  // 为graph添加配置参数
   graph_type graph(dc, clopts);
   if(powerlaw > 0) { // make a synthetic graph
     dc.cout() << "Loading synthetic Powerlaw graph." << std::endl;
     graph.load_synthetic_powerlaw(powerlaw, false, 2.1, 100000000);
   }
   else if (graph_dir.length() > 0) { // Load the graph from a file
+    //将文件通过指定format格式 load到所有机器中
     dc.cout() << "Loading graph in format: "<< format << std::endl;
     graph.load_format(graph_dir, format);
   }
@@ -245,6 +250,7 @@ int main(int argc, char** argv) {
 
 
   // must call finalize before querying the graph
+    // 在图计算之前必须调用finalize
   dc.cout() << "Finalizing graph." << std::endl;
   timer.start();
   graph.finalize();
@@ -260,9 +266,11 @@ int main(int argc, char** argv) {
             << " #edges:" << graph.num_edges() << std::endl;
 
   // Initialize the vertex data
+  // 初始化顶点数据
   graph.transform_vertices(init_vertex);
 
   // Running The Engine -------------------------------------------------------
+    // #vertices: 705 #edges:807454
   graphlab::omni_engine<pagerank> engine(dc, graph, exec_type, clopts);
   engine.signal_all();
   timer.start();
