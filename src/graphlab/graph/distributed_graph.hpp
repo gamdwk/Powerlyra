@@ -1,5 +1,5 @@
-/*  
- * Copyright (c) 2013 Shanghai Jiao Tong University. 
+ /*
+ * Copyright (c) 2013 Shanghai Jiao Tong University.
  *     All rights reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -113,9 +113,11 @@
 #include <graphlab/graph/ingress/distributed_bipartite_affinity_ingress.hpp>
 #include <graphlab/graph/ingress/distributed_bipartite_aweto_ingress.hpp>
 
-// hybrid 
+// hybrid
 #include <graphlab/graph/ingress/distributed_hybrid_ingress.hpp>
 #include <graphlab/graph/ingress/distributed_hybrid_ginger_ingress.hpp>
+//#include <graphlab/graph/ingress/distributed_bag_ingress.hpp>
+#include <graphlab/graph/ingress/distributed_topoX_ingress.hpp>
 
 #include <graphlab/graph/graph_hash.hpp>
 
@@ -136,8 +138,6 @@ namespace graphlab {
 
   /** \brief A directed graph datastructure which is distributed across
    * multiple machines.
-   *
-   * 分布在多个机器上的有向图数据结构
    *
    * This class implements a distributed directed graph datastructure where
    * vertices and edges may contain arbitrary user-defined datatypes as
@@ -418,7 +418,7 @@ namespace graphlab {
     /// The type of the local graph used to store the graph data
 #ifdef USE_DYNAMIC_LOCAL_GRAPH
     typedef graphlab::dynamic_local_graph<VertexData, EdgeData> local_graph_type;
-#else 
+#else
     typedef graphlab::local_graph<VertexData, EdgeData> local_graph_type;
 #endif
     typedef graphlab::distributed_graph<VertexData, EdgeData> graph_type;
@@ -428,7 +428,7 @@ namespace graphlab {
     friend class distributed_ingress_base<VertexData, EdgeData>;
 
 
-    // Make friends with graph operation classes 
+    // Make friends with graph operation classes
     template <typename Graph, typename GatherType>
     friend class graph_gather_apply;
 
@@ -442,6 +442,8 @@ namespace graphlab {
     friend class distributed_bipartite_affinity_ingress<VertexData, EdgeData>;
     friend class distributed_bipartite_aweto_ingress<VertexData, EdgeData>;
     friend class distributed_hybrid_ingress<VertexData, EdgeData>;
+	// friend class distributed_bag_ingress<VertexData, EdgeData>;
+    friend class distributed_topoX_ingress<VertexData, EdgeData>;
     friend class distributed_hybrid_ginger_ingress<VertexData, EdgeData>;
 
     typedef graphlab::vertex_id_type vertex_id_type;
@@ -450,7 +452,7 @@ namespace graphlab {
 
     enum degree_type {HIGH = 0, LOW, NUM_DEGREE_TYPES};
 
-    enum cuts_type {VERTEX_CUTS = 0, EDGE_CUTS, HYBRID_CUTS, HYBRID_GINGER_CUTS,
+    enum cuts_type {VERTEX_CUTS = 0, EDGE_CUTS, HYBRID_CUTS,BAG_CUTS, HYBRID_GINGER_CUTS,
       NUM_CUTS_TYPES};
 
     struct vertex_type;
@@ -469,8 +471,6 @@ namespace graphlab {
      * state. It behaves as a reference to location of the vertex
      * in the internal graph representation. While vertex_type may be copied
      * it must not outlive the underlying graph.
-     *
-     * 定义顶点类型
      */
     struct vertex_type {
       typedef distributed_graph graph_type;
@@ -552,8 +552,6 @@ namespace graphlab {
      * and essentially only a reference to the location of the edge
      * information in the underlying graph.  Therefore edge objects
      * can be copied but must not outlive the underlying graph.
-     *
-     * 定义边类型
      */
     class edge_type {
     private:
@@ -577,7 +575,7 @@ namespace graphlab {
       friend class distributed_graph;
     public:
 
-      /** 
+      /**
        * \internal
        * Unimplemented default constructor to help with
        * various type inference needs
@@ -639,10 +637,10 @@ namespace graphlab {
      *
      * Value graph options are:
      * \li \c ingress The graph partitioning method to use. May be "random"
-     *                "grid" or "pds". The methods have roughly the same runtime 
-     *                complexity, but the increasing partition qaulity. "grid" 
-     *                requires number of machine P be able to layout as a n*m = P 
-     *                grid with ( |m-n| <= 2). "pds" uses requires P = p^2+p+1 where 
+     *                "grid" or "pds". The methods have roughly the same runtime
+     *                complexity, but the increasing partition qaulity. "grid"
+     *                requires number of machine P be able to layout as a n*m = P
+     *                grid with ( |m-n| <= 2). "pds" uses requires P = p^2+p+1 where
      *                p is a prime number.
      *
      * \li \c userecent An optimization that can decrease memory utilization
@@ -666,9 +664,9 @@ namespace graphlab {
       nverts(0), nedges(0), local_own_nverts(0), nreplicas(0),
       how_cuts(VERTEX_CUTS), ingress_ptr(NULL),
 #ifdef _OPENMP
-      vertex_exchange(dc, omp_get_max_threads()), 
+      vertex_exchange(dc, omp_get_max_threads()),
 #else
-      vertex_exchange(dc), 
+      vertex_exchange(dc),
 #endif
       vset_exchange(dc), parallel_ingress(true), data_affinity(false) {
       rpc.barrier();
@@ -689,6 +687,9 @@ namespace graphlab {
 
       // hybrid cut
       size_t threshold = 100;
+	  size_t theta = 100;
+	  size_t etheta = 1000;
+	  size_t ceng = 1;
       // ginger heuristic
       size_t interval = std::numeric_limits<size_t>::max();
       size_t nedges = 0;
@@ -696,7 +697,7 @@ namespace graphlab {
       // bipartite
       std::string favorite = "source"; /* source or target */
 
-      
+
       // deprecated
       size_t bufsize = 50000;
       bool usehash = false;
@@ -719,7 +720,26 @@ namespace graphlab {
           if (rpc.procid() == 0)
             logstream(LOG_EMPH) << "Graph Option: threshold = "
                                 << threshold << std::endl;
-        } else if (opt == "interval") {
+		}
+		else if (opt == "ceng") {
+			opts.get_graph_args().get_option("ceng", ceng);
+			if (rpc.procid() == 0)
+				logstream(LOG_EMPH) << "Graph Option: ceng = "
+				<< ceng << std::endl;
+		}
+		else if (opt == "theta") {
+			opts.get_graph_args().get_option("theta", theta);
+			if (rpc.procid() == 0)
+				logstream(LOG_EMPH) << "Graph Option: theta = "
+				<< theta << std::endl;
+		}
+		else if (opt == "etheta"){
+			opts.get_graph_args().get_option("etheta", etheta);
+			if (rpc.procid() == 0)
+				logstream(LOG_EMPH) << "Graph Option: etheta = "
+				<< etheta << std::endl;
+		}
+		else if (opt == "interval") {
           opts.get_graph_args().get_option("interval", interval);
           if (rpc.procid() == 0)
             logstream(LOG_EMPH) << "Graph Option: interval = "
@@ -746,7 +766,7 @@ namespace graphlab {
             logstream(LOG_EMPH) << "Graph Option: favorite = "
                                 << favorite << std::endl;
         }
-        
+
         /**
          * These options below are deprecated.
          */
@@ -770,7 +790,7 @@ namespace graphlab {
         }
       }
       set_ingress_method(ingress_method, bufsize, usehash, userecent, favorite,
-        threshold, nedges, nverts, interval);
+		  threshold, theta,etheta, nedges, nverts, ceng, interval);
     }
 
   public:
@@ -781,20 +801,15 @@ namespace graphlab {
     bool is_dynamic() const {
       return local_graph.is_dynamic();
     }
-    
+
     /**
      * \brief Commits the graph structure. Once a graph is finalized it may
      * no longer be modified. Must be called on all machines simultaneously.
-     *
-     * 提交图结构.一旦图形完成,它可能不再被修改. 必须同时在所有机器上调用。
      *
      * Finalize is used to complete graph ingress by resolving vertex
      * ownship and completing local data structures. Once a graph is finalized
      * its structure may not be modified. Repeated calls to finalize() do
      * nothing.
-     *
-     * Finalize用于通过解析顶点本地并完成本地数据结构来完成图形入口。 一旦图形完成，其结构可能不会被修改。 重复调用finalize（）系统将什么也不做。
-     *
      */
     void finalize() {
 #ifndef USE_DYNAMIC_LOCAL_GRAPH
@@ -802,10 +817,9 @@ namespace graphlab {
 #endif
       ASSERT_NE(ingress_ptr, NULL);
       logstream(LOG_INFO) << "Distributed graph: enter finalize" << std::endl;
-      //ingress指针调用finalize方法
       ingress_ptr->finalize();
       lock_manager.resize(num_local_vertices());
-      rpc.barrier(); 
+      rpc.barrier();
 
       finalized = true;
     }
@@ -907,7 +921,7 @@ namespace graphlab {
      *
      * However, each vertex may only be added exactly once.
      *
-     * Returns true if successful, returns false if a vertex with id (-1) 
+     * Returns true if successful, returns false if a vertex with id (-1)
      * was added.
      */
     bool add_vertex(const vertex_id_type& vid,
@@ -961,7 +975,7 @@ namespace graphlab {
           << "\n\tEdges cannot be added to a graph after finalization."
           << std::endl;
       }
-#else 
+#else
       finalized = false;
 #endif
       if(source == vertex_id_type(-1)) {
@@ -998,7 +1012,6 @@ namespace graphlab {
    /**
     * \brief Performs a map-reduce operation on each vertex in the
     * graph returning the result.
-    * 在图的每个顶点上执行map-reduce操作，返回结果。
     *
     * Given a map function, map_reduce_vertices() call the map function on all
     * vertices in the graph. The return values are then summed together and the
@@ -1310,7 +1323,7 @@ namespace graphlab {
     * the internals of the parallelism structure since the fold is used within
     * a thread, but across threads/machines operator+= is used. The behavior
     * of the foldfunction, or the behavior of the return type should not make
-    * assumptions on the undocumented behavior of this function (such as 
+    * assumptions on the undocumented behavior of this function (such as
     * when the fold is used, and when += is used).
     *
     * ### Relations
@@ -1328,7 +1341,7 @@ namespace graphlab {
     *                          Can be inferred by the compiler.
     * \param foldfunction The fold function to use. Must take
     *                   a \ref vertex_type, or a reference to a
-    *                   \ref vertex_type as its first argument, and a 
+    *                   \ref vertex_type as its first argument, and a
     *                   reference to a ReductionType in its second argument.
     * \param vset The set of vertices to fold reduce over. Optional. Defaults to
     *             complete_set()
@@ -1380,7 +1393,7 @@ namespace graphlab {
         wrapper(global_result, global_result_set);
       rpc.all_reduce(wrapper);
       return wrapper.value;
-    } 
+    }
 
 
 
@@ -1389,8 +1402,8 @@ namespace graphlab {
     * graph returning the result.
     *
     * Given a fold function, fold_edges() call the fold function on all
-    * edges in the graph passing an aggregator. 
-    * The return values are then summed together across machines and 
+    * edges in the graph passing an aggregator.
+    * The return values are then summed together across machines and
     * final result returned. The fold function should only read data
     * and should not make any modifications. fold_edges() must be
     * called on all machines simultaneously.
@@ -2292,6 +2305,7 @@ namespace graphlab {
             || (!parallel_ingress && (rpc.procid() == 0))
             || (data_affinity)) {
           logstream(LOG_EMPH) << "Loading graph from file: " << graph_files[i] << std::endl;
+		  rpc.cout() << "Loading graph from file: " << graph_files[i] << std::endl;
           // is it a gzip file ?
           const bool gzip = boost::ends_with(graph_files[i], ".gz");
           // open the stream
@@ -2511,7 +2525,6 @@ namespace graphlab {
     /**
      *  \brief load a graph with a standard format. Must be called on all
      *  machines simultaneously.
-     * 加载一个标准格式的图形。 必须同时在所有机器上调用。
      *
      *  The supported graph formats are described in \ref graph_formats.
      */
@@ -2752,7 +2765,7 @@ namespace graphlab {
             (dtype == other.dtype) &&
             (gvid == other.gvid)  &&
             (num_in_edges == other.num_in_edges) &&
-            (num_out_edges == other.num_out_edges) && 
+            (num_out_edges == other.num_out_edges) &&
             (_mirrors == other._mirrors)
             );
       }
@@ -2898,14 +2911,18 @@ namespace graphlab {
      * \brief Returns true if the provided global vertex ID is a
      *        master vertex on this machine and false otherwise.
      */
-    bool is_master(vertex_id_type vid) const {
-      const procid_t owning_proc = graph_hash::hash_vertex(vid) % rpc.numprocs();
+     bool is_master(vertex_id_type vid) {
+	  typename hopscotch_map_type::const_iterator iter = vid2lvid.find(vid);
+	  ASSERT_TRUE(iter != vid2lvid.end());
+	  procid_t owning_proc = lvid2record[iter->second].owner;
       return (owning_proc == rpc.procid());
     }
 
 
-    procid_t master(vertex_id_type vid) const {
-      const procid_t owning_proc = graph_hash::hash_vertex(vid) % rpc.numprocs();
+    procid_t master(vertex_id_type vid)  {
+	  typename hopscotch_map_type::const_iterator iter = vid2lvid.find(vid);
+	  ASSERT_TRUE(iter != vid2lvid.end());
+	  procid_t owning_proc = lvid2record[iter->second].owner;
       return owning_proc;
     }
 
@@ -3297,11 +3314,10 @@ namespace graphlab {
 
     lock_manager_type lock_manager;
 
-    //设置采用哪种图分区策略
     void set_ingress_method(const std::string& method,
-        size_t bufsize = 50000, bool usehash = false, bool userecent = false, 
+        size_t bufsize = 50000, bool usehash = false, bool userecent = false,
         std::string favorite = "source",
-        size_t threshold = 100, size_t nedges = 0, size_t nverts = 0,
+		size_t threshold = 100, size_t theta = 100,size_t etheta=1000, size_t nedges = 0, size_t nverts = 0,size_t ceng=1,
         size_t interval = std::numeric_limits<size_t>::max()) {
       if(ingress_ptr != NULL) { delete ingress_ptr; ingress_ptr = NULL; }
       if (method == "oblivious") {
@@ -3310,7 +3326,7 @@ namespace graphlab {
         ingress_ptr = new distributed_oblivious_ingress<VertexData, EdgeData>(rpc.dc(), *this, usehash, userecent);
       } else if  (method == "random") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use random ingress" << std::endl;
-        ingress_ptr = new distributed_random_ingress<VertexData, EdgeData>(rpc.dc(), *this); 
+        ingress_ptr = new distributed_random_ingress<VertexData, EdgeData>(rpc.dc(), *this);
       } else if (method == "grid") {
         if (rpc.procid() == 0)logstream(LOG_EMPH) << "Use grid ingress" << std::endl;
         ingress_ptr = new distributed_constrained_random_ingress<VertexData, EdgeData>(rpc.dc(), *this, "grid");
@@ -3332,7 +3348,12 @@ namespace graphlab {
         if (rpc.procid() == 0) logstream(LOG_EMPH) << "Use hybrid ingress" << std::endl;
         ingress_ptr = new distributed_hybrid_ingress<VertexData, EdgeData>(rpc.dc(), *this, threshold);
         set_cuts_type(HYBRID_CUTS);
-      } else if (method == "hybrid_ginger") {
+      } 
+      /*else if (method == "bag") {
+        if (rpc.procid() == 0) logstream(LOG_EMPH) << "Use bag ingress" << std::endl;
+        ingress_ptr = new distributed_bag_ingress<VertexData, EdgeData>(rpc.dc(), *this, threshold,theta,etheta,ceng);
+        set_cuts_type(BAG_CUTS);
+      }*/ else if (method == "hybrid_ginger") {
         if (rpc.procid() == 0) logstream(LOG_EMPH) << "Use hybrid ginger ingress" << std::endl;
         ASSERT_GT(nedges, 0); ASSERT_GT(nverts, 0);
         ingress_ptr = new distributed_hybrid_ginger_ingress<VertexData, EdgeData>(rpc.dc(), *this, threshold, nedges, nverts, interval);
@@ -3360,7 +3381,7 @@ namespace graphlab {
       //     << ", usehash: " << usehash << ", userecent" << userecent << std::endl;
       //   ingress_ptr = new distributed_batch_ingress<VertexData, EdgeData>(rpc.dc(), *this,
       //                                                    bufsize, usehash, userecent);
-      // } else 
+      // } else
     } // end of set ingress method
 
 

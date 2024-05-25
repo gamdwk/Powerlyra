@@ -59,6 +59,7 @@
 #include <graphlab/engine/async_consistent_engine.hpp>
 #include <graphlab/engine/powerlyra_sync_engine.hpp>
 #include <graphlab/engine/powerlyra_async_engine.hpp>
+#include <graphlab/engine/topoX_sync_engine.hpp>
 
 namespace graphlab {
 
@@ -174,6 +175,10 @@ namespace graphlab {
      */
     typedef powerlyra_async_engine<VertexProgram> powerlyra_async_engine_type;
 
+     /**
+     * \brief the type of TopoX engine
+     */
+    typedef topoX_sync_engine<VertexProgram> topoX_sync_engine_type;
 
 
   private:
@@ -238,6 +243,9 @@ namespace graphlab {
       } else if(engine_type == "plasync" || engine_type == "powerlyra_asynchronous") {
         logstream(LOG_INFO) << "Using the PowerLyra Asynchronous engine." << std::endl;
         engine_ptr = new powerlyra_async_engine_type(dc, graph, new_options);
+      } else if(engine_type == "topoX"){
+        logstream(LOG_INFO) << "Using the topoX Synchronous engine." << std::endl;
+        engine_ptr = new topoX_sync_engine_type(dc, graph, new_options);
       } else {
         logstream(LOG_FATAL) << "Invalid engine type: " << engine_type << std::endl;
       }
