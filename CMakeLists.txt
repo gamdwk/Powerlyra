@@ -183,8 +183,9 @@ ExternalProject_Add(libbz2
 # unordered containers.
 ExternalProject_Add(boost
   PREFIX ${GraphLab_SOURCE_DIR}/deps/boost
-  URL "http://sourceforge.net/projects/boost/files/boost/1.53.0/boost_1_53_0.tar.gz"
+  URL "https://sourceforge.net/projects/boost/files/boost/1.53.0/boost_1_53_0.tar.gz/download?use_mirror=autoselect"
   URL_MD5 d41d8cd98f00b204e9800998ecf8427e
+  DOWNLOAD_NAME boost_1_53_0.tar.gz
   BUILD_IN_SOURCE 1
   CONFIGURE_COMMAND
   ./bootstrap.sh
